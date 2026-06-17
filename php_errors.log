@@ -1,0 +1,6 @@
+[03-Jun-2026 19:04:20 UTC] PHP Fatal error:  Maximum execution time of 30 seconds exceeded in C:\Users\planta\Documents\Trazabilidad\interfaz\pruebas\nombre_cols.php on line 47
+[09-Jun-2026 16:59:10 UTC] PHP Fatal error:  Uncaught Error: Class "Auth" not found in C:\Users\planta\Documents\Trazabilidad\interfaz\includes\layout_top.php:361
+Stack trace:
+#0 {main}
+  thrown in C:\Users\planta\Documents\Trazabilidad\interfaz\includes\layout_top.php on line 361
+[09-Jun-2026 18:03:40 UTC] PHP Fatal error:  Maximum execution time of 30 seconds exceeded in C:\Users\planta\Documents\Trazabilidad\interfaz\public\historial_cerrados.php on line 267
