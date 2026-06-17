@@ -4,65 +4,65 @@
 
 ## Objetivo
 
-[Completar: 2-4 líneas explicando el problema de negocio que resuelve. Por ejemplo: el sistema centraliza la planificación de órdenes de fabricación (OF) cruzando datos de JobBOSS con información complementaria registrada localmente (modelo de bomba, estación, fechas reales de entrega), y permite asignar Fichas de Despacho (FD) a los componentes de cada plano para dar seguimiento a su fabricación hasta el cierre de la orden.]
+El sistema centraliza la planificación de órdenes de fabricación (OF) cruzando datos de JobBOSS con información complementaria registrada localmente (modelo de bomba, estación, fechas reales de entrega), y permite asignar piezas (con su determinado código) a los componentes de cada plano para dar seguimiento a su fabricación hasta el cierre de la orden.
 
 El sistema cubre tres etapas del flujo:
 
-1. **Planificación** — visualización de órdenes activas (no cerradas) con sus fechas de entrega, avance de horas y datos enriquecidos (modelo, estación) detectados automáticamente o corregidos manualmente.
+1. **Planificación** — visualización de órdenes activas o cerradas con sus fechas de entrega, avance de horas y datos enriquecidos (modelo, estación) detectados automáticamente o corregidos manualmente.
 2. **Asignación** — asociación de FDs disponibles a los componentes de un plano según su modelo de bomba, registrando esa asignación en `Asignaciones_FD`.
 3. **Historial** — consulta de planos ya cerrados (`status = Closed`) que efectivamente tuvieron asignaciones registradas, para trazabilidad posterior.
 
 ## Arquitectura de comunicación
 
 ```
-┌─────────────────────┐         ┌──────────────────────┐
-│   SQL Server JobBOSS │         │   SQL Server local    │
-│   (JB_Delta)         │         │   (RW)                 │
-│                      │         │                        │
-│  Customer            │         │  Info_Bombas           │
-│  Job                 │         │  Historial_Fechas      │
-│  Delivery            │         │  Asignaciones_FD       │
-│  Bill_Of_Jobs         │         │  Componentes           │
-│  (solo lectura,      │         │  Usuarios / sesiones    │
-│   fuente de verdad   │         │  (lectura/escritura)    │
-│   de órdenes)        │         │                        │
-└──────────┬───────────┘         └───────────┬────────────┘
+┌──────────────────────┐          ┌───────────────────────┐
+│ SQL Server Principal │          │   SQL Server local    │
+│   (BaseDeDatos #1)   │          │   (BaseDeDatos #2)    │
+│                      │          │                       │
+│  Clientes            │          │  Info_Bombas          │
+│  Codigo (Tareas)     │          │  Historial_Fechas     │
+│  Delivery            │          │  Asignaciones_FD      │
+│  Bill_Of_Jobs        │          │  Componentes          │
+│  (solo lectura,      │          │  Usuarios / sesiones  │
+│   fuente de verdad   │          │  (lectura/escritura)  │
+│   de órdenes)        │          │                       │
+└──────────┬───────────┘          └───────────┬───────────┘
            │                                  │
            │  sqlsrv_query (conn_jb)          │ sqlsrv_query (conn_rw)
            │                                  │
-           └────────────────┬─────────────────┘
+           └─────────────────┬────────────────┘
                              │
-                  ┌──────────▼───────────┐
+                  ┌──────────▼────────────┐
                   │  includes/            │
-                  │  get_planos.php        │
-                  │  (clase Planos)        │
-                  │                        │
-                  │  Cruza ambas BD,       │
-                  │  detecta modelo/       │
-                  │  estación por regex,   │
-                  │  resuelve fecha final  │
-                  │  según historial       │
-                  └──────────┬─────────────┘
+                  │  get_planos.php       │
+                  │  (clase Planos)       │
+                  │                       │
+                  │  Cruza ambas BD,      │
+                  │  detecta modelo/      │
+                  │  estación por regex,  │
+                  │  resuelve fecha final │
+                  │  según historial      │
+                  └──────────┬────────────┘
                              │
-              ┌──────────────┼───────────────┐
-              │              │               │
-   ┌──────────▼──────┐ ┌─────▼──────────┐ ┌──▼───────────────────┐
+            ┌────────────────┼─────────────────┐
+            │                │                 │
+   ┌────────▼─────────┐ ┌────▼────────────┐ ┌──▼───────────────────┐
    │ planificacion.php│ │tabla_asignacion │ │historial_asignaciones│
    │                  │ │.php             │ │.php                  │
-   │ Lista de OFs     │ │ Asignación de   │ │ Planos Closed con     │
-   │ activas + filtro │ │ FDs por modelo  │ │ asignaciones ya       │
-   │                  │ │                 │ │ registradas           │
-   └──────────┬───────┘ └────────┬────────┘ └───────────────────────┘
+   │ Lista de Planos  │ │ Asignación de   │ │ Planos Closed con    │
+   │ activas + filtro │ │ FDs por modelo  │ │ asignaciones ya      │
+   │                  │ │                 │ │ registradas          │
+   └──────────┬───────┘ └────────┬────────┘ └──────────────────────┘
               │                  │
               │                  │ fetch() / AJAX
               │                  ▼
               │         ┌──────────────────┐
-              │         │ api_asignar.php   │
-              │         │                   │
-              │         │ INSERT/UPDATE/    │
-              │         │ DELETE sobre      │
-              │         │ Asignaciones_FD   │
-              │         │ (CSRF + sesión)   │
+              │         │ api_asignar.php  │
+              │         │                  │
+              │         │ INSERT/UPDATE/   │
+              │         │ DELETE sobre     │
+              │         │ Asignaciones_FD  │
+              │         │ (CSRF + sesión)  │
               │         └──────────────────┘
               │
               ▼
@@ -71,9 +71,9 @@ El sistema cubre tres etapas del flujo:
 
 ### Flujo de datos
 
-- **JB_Delta** es de **solo lectura**: se consulta vía `sqlsrv_query($conn_jb, ...)` para traer las órdenes (`Job`), clientes (`Customer`) y fechas comprometidas (`Delivery`), incluyendo una consulta recursiva (`Bill_Of_Jobs`) para sumar horas estimadas/reales de toda la jerarquía de sub-trabajos de cada OF.
-- **RW** (base local) es de **lectura/escritura** y guarda todo lo que JobBOSS no contempla: correcciones manuales de modelo/estación/descripcion (`Info_Bombas`), historial de cambios de fecha de entrega (`Historial_Fechas`), el catálogo de componentes por modelo (`Componentes`) y las asignaciones de FD a cada plano (`Asignaciones_FD`).
-- La clase `Planos::getPlanos()` (en `includes/get_planos.php`) es el **punto único de cruce** entre ambas bases: por cada plano de JB_Delta busca su fila correspondiente en `Info_Bombas` (clave `plano|of`) y en el historial de fechas, decide qué dato mostrar (modificado manualmente vs. detectado automáticamente vs. valor crudo de JobBOSS) y devuelve un arreglo normalizado. Todas las páginas de planificación reutilizan esta función para no duplicar la lógica de cruce.
+- **Base de Datos #1** es de **solo lectura**: se consulta vía `sqlsrv_query($conn_jb, ...)` para traer las órdenes (`Codigo`), clientes (`Cliente`) y fechas comprometidas (`Delivery`), incluyendo una consulta recursiva (`Bill_Of_Jobs`) para sumar horas estimadas/reales de toda la jerarquía de sub-trabajos de cada plano.
+- **Base de Datos #2** (base local) es de **lectura/escritura** y guarda todo los cambios que se realizan con la interfaz: correcciones manuales de modelo/estación/descripcion (`Info_Bombas`), historial de cambios de fecha de entrega (`Historial_Fechas`), el catálogo de componentes por modelo (`Componentes`) y las asignaciones de FD a cada plano (`Asignaciones_FD`).
+- La clase `Planos::getPlanos()` (en `includes/get_planos.php`) es el **punto único de cruce** entre ambas bases: por cada plano de la base principal busca su fila correspondiente en `Info_Bombas` (clave `plano|of`) y en el historial de fechas, decide qué dato mostrar (modificado manualmente vs. detectado automáticamente vs. valor crudo) y devuelve un arreglo normalizado. Todas las páginas de planificación reutilizan esta función para no duplicar la lógica de cruce.
 - Las páginas de asignación (`tabla_asignacion.php`) leen ese arreglo más las FDs disponibles y las asignaciones ya hechas, y delegan cualquier cambio (crear, mover, eliminar una asignación) a `api_asignar.php` vía `fetch()`/AJAX, que valida sesión y CSRF antes de tocar `Asignaciones_FD`.
 - `historial_asignaciones.php` es de **solo lectura**: vuelve a llamar `Planos::getPlanos()` (sin excluir Closed), filtra los que tengan registros en `Asignaciones_FD`, y los muestra en una tabla horizontal con una columna FD/Cant por cada componente.
 
