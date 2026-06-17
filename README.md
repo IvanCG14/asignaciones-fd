@@ -1,6 +1,6 @@
-# [Asignaciones Piezas-Planos]
+# Asignaciones Piezas-Planos
 
-> [Sistema interno de planificación y asignación de fabricación de delta para el área de Producción]
+> Sistema interno de planificación y asignación de fabricación de delta para el área de Producción
 
 ## Objetivo
 
